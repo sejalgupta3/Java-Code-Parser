@@ -1,0 +1,384 @@
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+public class Parser {
+	List<String> cList;
+	List<String> iList;
+
+	public boolean hasDataType(String text) {
+		text = text.trim().replaceAll("\\s+", " ");
+		text = text.trim().replaceAll("\\[", "");
+		text = text.trim().replaceAll("\\]", "");
+		List<String> wordList = new ArrayList<String>(Arrays.asList(text.split(" ")));
+		if (wordList.contains("byte") || wordList.contains("short") || wordList.contains("int")
+				|| wordList.contains("long") || wordList.contains("float") || wordList.contains("double")
+				|| wordList.contains("boolean") || wordList.contains("char") || wordList.contains("Byte")
+				|| wordList.contains("Short") || wordList.contains("Int") || wordList.contains("Long")
+				|| wordList.contains("Float") || wordList.contains("Double") || wordList.contains("Boolean")
+				|| wordList.contains("Char") || wordList.contains("String")) {
+			return true;
+		}
+		return false;
+	}
+
+	public boolean isMethodDeclaration(String text) {
+		if ((text.indexOf("(") != -1 && text.indexOf(")") != -1) && (text.indexOf(";") == -1 || text.indexOf("abstract") != -1)) {
+			return true;
+		}
+		return false;
+	}
+
+	public boolean hasScope(String text) {
+		text = text.trim().replaceAll("\\s+", " ");
+		List<String> wordList = new ArrayList<String>(Arrays.asList(text.split(" ")));
+		if (wordList.contains("public") || wordList.contains("private") || wordList.contains("protected")) {
+			return true;
+		}
+		return false;
+	}
+
+	public boolean isclassDeclaration(String text) {
+		if (text.indexOf("class") != -1 || text.indexOf("interface") != -1) {
+			return true;
+		}
+		return false;
+	}
+
+	public void classInterfaceList(File[] files) throws IOException {
+		BufferedReader fileReader = null;
+		cList = new ArrayList<String>();
+		iList = new ArrayList<String>();
+		String line;
+		for (File f : files) {
+			fileReader = new BufferedReader(new FileReader(f));
+			while ((line = fileReader.readLine()) != null) {
+				if (!line.isEmpty()) {
+					line = line.trim().replaceAll("\\s+", " ");
+					if (isclassDeclaration(line)) {
+						String[] wordList = line.split(" ");
+						for (int i = 0; i < wordList.length; i++) {
+							if (wordList[i].equals("class")) {
+								cList.add(wordList[++i]);
+								break;
+							} else if (wordList[i].equals("interface")) {
+								iList.add(wordList[++i]);
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	public String getClassName(String text) {
+		text = text.trim().replaceAll("<", "< ");
+		text = text.trim().replaceAll(">", " >");
+		//text = text.trim().replaceAll("\\(", "\\( ");
+		//text = text.trim().replaceAll("\\)", " \\)");
+		text = text.trim().replaceAll(";", " ;");
+		text = text.trim().replaceAll("\\s+", " ");
+		List<String> wordList = new ArrayList<String>(Arrays.asList(text.split(" ")));
+		if (wordList.contains("class") || wordList.contains("interface")) {
+			return null;
+		}
+		for (String word : wordList) {
+			if (cList.contains(word) || iList.contains(word)) {
+				return word;
+			}
+		}
+		return null;
+	}
+
+	public static void main(String[] args) {
+		BufferedReader bufferedReader = null;
+		BufferedReader bufferedReader2 = null;
+		BufferedReader bufferedReader3 = null;
+		BufferedReader bufferedReader4 = null;
+		BufferedReader bufferedReader5 = null;
+		BufferedWriter bufferedWriter = null;
+		BufferedReader readImport = null;
+		try {
+			String sline;
+			String sline2 = "";
+			String str, str1;
+			int hasImportCount = 0;
+
+			File[] files = new File(args[0]).listFiles(new FilenameFilter() {
+				public boolean accept(File dir, String filename) {
+					return filename.endsWith(".java");
+				}
+			});
+
+			Parser parser = new Parser();
+			parser.classInterfaceList(files);
+			File filex = new File("JavaClass");
+			String[] myFiles;
+
+			if (filex.isDirectory()) {
+				myFiles = filex.list();
+				for (int i = 0; i < myFiles.length; i++) {
+					File myFile = new File(filex, myFiles[i]);
+					myFile.delete();
+				}
+			}
+
+			for (File f : files) {
+				boolean hasAssociation = false;
+				boolean needsHiddenClass = false;
+				String hiddenClass = "";
+				File file = new File("JavaClass/" + f.getName());
+				if (!file.exists()) {
+					file.createNewFile();
+				}
+				bufferedWriter = new BufferedWriter(new FileWriter(file));
+				bufferedReader = new BufferedReader(new FileReader(f));
+				bufferedReader2 = new BufferedReader(new FileReader(f));
+				bufferedReader3 = new BufferedReader(new FileReader(f));
+				bufferedReader4 = new BufferedReader(new FileReader(f));
+				bufferedReader5 = new BufferedReader(new FileReader(f));
+
+				String lineGet, lineSet;
+				boolean hasGetSet = false;
+				while ((lineGet = bufferedReader3.readLine()) != null) {
+					if (lineGet.contains(" get") && lineGet.contains("(") && lineGet.contains("public")) {
+						while ((lineSet = bufferedReader4.readLine()) != null) {
+							if (lineSet.contains(" set") && lineSet.contains("(") && lineSet.contains("public")) {
+								hasGetSet = true;
+							}
+						}
+					}
+				}
+
+				readImport = new BufferedReader(new FileReader(f));
+				while ((sline = readImport.readLine()) != null) {
+					if (sline.indexOf("import java.") != -1) {
+						hasImportCount++;
+					}
+				}
+
+				if (hasImportCount != 0) {
+					while ((sline = bufferedReader.readLine()) != null) {
+						sline2 = bufferedReader2.readLine();
+						if (sline.indexOf("import java.") != -1) {
+							hasImportCount--;
+						}
+						bufferedWriter.write(sline);
+						bufferedWriter.newLine();
+						if (hasImportCount == 0) {
+							break;
+						}
+					}
+				}
+
+				bufferedWriter.write("/** ");
+				bufferedWriter.newLine();
+				bufferedWriter.write(" * @opt operations");
+				bufferedWriter.newLine();
+				bufferedWriter.write(" * @opt nodefontsize 15");
+				bufferedWriter.newLine();
+				bufferedWriter.write(" * @opt all");
+				bufferedWriter.newLine();
+				bufferedWriter.write(" * @opt attributes");
+				bufferedWriter.newLine();
+				bufferedWriter.write(" * @opt types");
+				bufferedWriter.newLine();
+				bufferedWriter.write(" * @hidden");
+				bufferedWriter.newLine();
+				bufferedWriter.write(" */");
+				bufferedWriter.newLine();
+				bufferedWriter.write("class UMLOptions {}");
+				bufferedWriter.newLine();
+
+				String checkgetset = "";
+				String hiddenClassLine;
+				while ((hiddenClassLine = bufferedReader5.readLine()) != null) {
+					needsHiddenClass = false;
+					hiddenClassLine = hiddenClassLine.trim().replaceAll("\\s+", " ");
+					if (!hiddenClassLine.isEmpty()) {
+						if (!parser.isMethodDeclaration(hiddenClassLine) && parser.hasScope(hiddenClassLine)
+								&& !parser.hasDataType(hiddenClassLine)
+								&& parser.getClassName(hiddenClassLine) == null) {
+							hiddenClassLine = hiddenClassLine.trim().replaceAll(";", " ;");
+							hiddenClassLine = hiddenClassLine.trim().replaceAll("\\s+", " ");
+							List<String> wordList = new ArrayList<String>(Arrays.asList(hiddenClassLine.split(" ")));
+							if (!wordList.contains("class") && !wordList.contains("interface")
+									&& !wordList.contains("void") && wordList.size() == 4) {
+								needsHiddenClass = true;
+								hiddenClass = wordList.get(1);
+							}
+						}
+					}
+
+					if (needsHiddenClass) {
+						bufferedWriter.newLine();
+						bufferedWriter.write("/**");
+						bufferedWriter.newLine();
+						bufferedWriter.write("*@hidden");
+						bufferedWriter.newLine();
+						bufferedWriter.write("*/");
+						bufferedWriter.newLine();
+						bufferedWriter.write("class " + hiddenClass);
+						bufferedWriter.newLine();
+						bufferedWriter.write("{");
+						bufferedWriter.newLine();
+						bufferedWriter.write("}");
+						bufferedWriter.newLine();
+					}
+				}
+
+				while ((sline = bufferedReader.readLine()) != null) {
+					sline = sline.trim().replaceAll("\\s+", " ");
+					if (!sline.isEmpty()) {
+						String className;
+						if ((className = parser.getClassName(sline)) != null) {
+							if (!hasAssociation) {
+								bufferedWriter.write("/**");
+								bufferedWriter.newLine();
+								hasAssociation = true;
+							}
+							if (!parser.isMethodDeclaration(sline)) {
+								if ((sline.indexOf("=new ") != -1 || sline.indexOf("= new ") != -1)
+										&& sline.indexOf("Collection") == -1 && !parser.hasScope(sline)) {
+									for (String interfaceName : parser.iList) {
+										if (sline.indexOf(interfaceName) != -1) {
+											String s = " * @depend - <uses> - " + interfaceName.trim();
+											bufferedWriter.write(s);
+											bufferedWriter.newLine();
+										}
+									}
+								} else if (sline.indexOf("collection") != -1 || sline.indexOf("Collection") != -1) {
+									sline = sline.trim().replaceAll("<", " < ");
+									sline = sline.trim().replaceAll(">", " > ");
+									sline = sline.trim().replaceAll("\\s+", " ");
+									str1 = "";
+									String[] wordList = sline.split(" ");
+									for (int i = 0; i < wordList.length; i++) {
+										if (wordList[i].equals(">")) {
+											i++;
+											str1 = wordList[i];
+											break;
+										}
+									}
+									String s = " * @assoc 0 " + str1.trim() + " * " + className.trim();
+									bufferedWriter.write(s);
+									bufferedWriter.newLine();
+								} else {
+									str = "";
+									sline = sline.trim().replaceAll(";", " ;");
+									sline = sline.trim().replaceAll("\\s+", " ");
+									String[] wordList = sline.split(" ");
+									for (int i = 0; i < wordList.length; i++) {
+										if (wordList[i].equals(className)) {
+											i++;
+											str = wordList[i];
+											break;
+										}
+									}
+									String s = " * @assoc 1 " + str.trim() + " 1 " + className.trim();
+									bufferedWriter.write(s);
+									bufferedWriter.newLine();
+								}
+							} else if (parser.isMethodDeclaration(sline)) {
+								sline = sline.trim().replaceAll("\\s+", " ");
+								System.out.println("A method space-------------" + sline);
+								String[] wordList = sline.split(" ");
+								for (int i = 0; i < wordList.length; i++) {
+									if (parser.iList.contains(wordList[i])) {
+										String s = " * @depend - <uses> - " + wordList[i].trim();
+										bufferedWriter.write(s);
+										bufferedWriter.newLine();
+									}
+								}
+							}
+						}
+					}
+				}
+				if (hasAssociation) {
+					bufferedWriter.write(" */");
+					bufferedWriter.newLine();
+				}
+				boolean match1 = false;
+				boolean match2 = false;
+				boolean check1 = false;
+				boolean check2 = false;
+				boolean check3 = false;
+				boolean check4 = false;
+				boolean hasgetset = false;
+				while ((sline2 = bufferedReader2.readLine()) != null) {
+					if (hasGetSet) {
+						check3 = false;
+						check4 = false;
+						String mreg = sline2;
+						if (mreg.contains(" get") && mreg.contains("(") && mreg.contains("public")) {
+							match1 = true;
+							check1 = true;
+							String repthis;
+							int flagset = 0;
+							while ((repthis = bufferedReader2.readLine()) != null && flagset == 0) {
+								if (repthis.contains("return")) {
+									flagset = 1;
+									repthis = repthis.replace("return", "").trim();
+									repthis = repthis.replace("this.", "").trim();
+									repthis = repthis.replace(";", "").trim();
+									checkgetset = repthis;
+								}
+							}
+						}
+						if (mreg.contains(" set") && mreg.contains("(") && mreg.contains("public")) {
+							match2 = true;
+							check2 = true;
+						}
+						if (mreg.contains("}") && check1 == true) {
+							check3 = true;
+							check1 = false;
+						}
+						if (mreg.contains("}") && check2 == true) {
+							check4 = true;
+							check2 = false;
+						}
+						if (check4 == true && check3 == true) {
+							hasgetset = true;
+						}
+					}
+					if ((parser.getClassName(sline2) == null || parser.isMethodDeclaration(sline2))
+							&& sline2.indexOf("protected") == -1 && sline2.indexOf("package ") == -1
+							&& (check1 == false && check2 == false && check3 == false && check4 == false)) {
+						bufferedWriter.write(sline2);
+						bufferedWriter.newLine();
+					}
+				}
+				bufferedWriter.close();
+				String line = "", oldtext = "";
+				File filexx = new File("JavaClass/" + f.getName());
+				String currentDirectory = filexx.getAbsolutePath();
+				BufferedReader readerx = new BufferedReader(new FileReader(currentDirectory));
+				while ((line = readerx.readLine()) != null) {
+					if (hasGetSet && line.contains(checkgetset)) {
+						//line = line.replace("private", "public");
+					}
+					oldtext += line + "\r\n";
+				}
+				FileWriter writerx = new FileWriter(filexx);
+				writerx.write(oldtext);
+				writerx.close();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				bufferedReader.close();
+			} catch (IOException ex) {
+				ex.printStackTrace();
+			}
+		}
+	}
+}
